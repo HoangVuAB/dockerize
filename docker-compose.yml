@@ -1,0 +1,74 @@
+version: "3.8"
+services:
+  # Application
+  app:
+    build:
+      context: ./docker/services/app
+    working_dir: /var/www
+    volumes:
+      - ./src:/var/www
+      # - ./docker/services/app/conf.d/xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+      # - ./docker/services/app/conf.d/error_reporting.ini:/usr/local/etc/php/conf.d/error_reporting.ini
+    ports:
+      - "9000:9000"
+      - "5173:5173"
+      - "6001:6001"
+  # Web Server
+  nginx:
+    build:
+      context: ./docker/services/nginx
+    working_dir: /var/www
+    volumes:
+      - ./src:/var/www
+    ports:
+      - "80:80"
+
+  # Database-mysql
+  database:
+    image: mysql:latest
+    restart: always
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_ALLOW_EMPTY_PASSWORD
+    volumes:
+      - ./docker/volumes/mysql/${DB_DATABASE}:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  # Database Management - phpmyadmin
+  pma:
+    image: phpmyadmin:5.1
+    environment:
+      - PMA_ARBITRARY=1
+      - PMA_HOST=${DB_HOST}
+      - PMA_USER=${DB_USERNAME}
+      - PMA_PASSWORD=${DB_PASSWORD}
+      - PMA_PORT=${DB_PORT}
+    depends_on:
+      - "database"
+    ports:
+      - "8081:80"
+
+  # Redis Server
+  redis:
+    image: redis:alpine
+    volumes:
+      - ./docker/volumes/redis:/data
+    ports:
+      - "6379:6379"
+
+  # Mailing Server
+  mailhog:
+    image: mailhog/mailhog:latest
+    logging:
+      driver: "none"
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+#Docker Networks
+networks:
+  app-network:
+    driver: bridge
